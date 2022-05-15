@@ -1,5 +1,6 @@
 # error-code
 ![example workflow](https://github.com/vasil-pashov/error-code/actions/workflows/cmake_ci.yml/badge.svg)
+
 Small library used to wrap up status codes and messages from functions. Used as substitute for C++ exceptions.
 
 The struct `EC::ErrorCode` has two main components the status of the error and an optional message which describes the error. Status code with value 0 indicates that there are no errors and `EC::ErrorCode::hasError()` will return false.
