@@ -1,5 +1,5 @@
 # error-code
-![example workflow](https://github.com/vasil-pashov/error-code/actions/workflows/cmake_ci.yml/badge.svg)
+![CMake workflow](https://github.com/vasil-pashov/error-code/actions/workflows/cmake_ci.yml/badge.svg)
 
 Small library used to wrap up status codes and messages from functions. Used as substitute for C++ exceptions.
 
@@ -32,3 +32,6 @@ EC::ErrorCode foo(int n) {
   return EC::ErrorCode();
 }
 ```
+# CMake options
+* ERROR_CODE_WITH_TESTS - Builds tests for the project. Currently doctest is used for testing. This will try to find doctest via `find_package`, if it fails it will download doctest via `FetchContent`. Default is `OFF`.
+* ERROR_CODE_WITH_INSTALL - Generate install target. Default is `OFF`.
