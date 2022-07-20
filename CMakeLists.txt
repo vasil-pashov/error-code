@@ -7,13 +7,12 @@ cmake_policy(SET CMP0077 NEW)
 include(FetchContent)
 
 option(ERROR_CODE_WITH_TESTS "Builds tests for the project" OFF)
+option(ERROR_CODE_WITH_INSTALL "Generate install target" OFF)
 
 add_library(${PROJECT_NAME} STATIC
 	cpp/error_code.cpp
 	include/error_code.h
 )
-
-target_include_directories(${PROJECT_NAME} PUBLIC include)
 
 add_compile_definitions(
 	ERROR_CODE_MAJOR_VERSION=${CMAKE_PROJECT_VERSION_MAJOR}
@@ -34,22 +33,83 @@ if(${ERROR_CODE_WITH_TESTS})
 	# is no way to tell if FetchContent_Declare with FIND_PACKAGE_ARGS did
 	# find_package successfully or it had to fallback, because FetchContent_Declare
 	# does not set <package>_FOUND even if the package was found.
-	set(_doctest_version 2.4.8)
-	find_package(doctest ${_doctest_version} QUIET)
-	set(_doctest_cmake_path "doctest")
+	set(doctest_version 2.4.8)
+	find_package(doctest ${doctest_version} QUIET)
+	set(doctest_cmake_path "doctest")
 	if(NOT ${doctest_FOUND})
 		message(STATUS "Doctest was not found. Proceeding to download it.")
 		FetchContent_Declare(
 			doctest
 			GIT_REPOSITORY https://github.com/doctest/doctest.git
-			GIT_TAG "v${_doctest_version}"
+			GIT_TAG "v${doctest_version}"
 		)
 		set(DOCTEST_NO_INSTALL ON CACHE BOOL "")
 		set(DOCTEST_WITH_MAIN_IN_STATIC_LIB OFF CACHE BOOL "")
 		FetchContent_MakeAvailable(doctest)
-		set(_doctest_cmake_path ${doctest_SOURCE_DIR}/scripts/cmake/doctest.cmake)
+		set(doctest_cmake_path ${doctest_SOURCE_DIR}/scripts/cmake/doctest.cmake)
 	endif()
-	include(${_doctest_cmake_path})
+	include(${doctest_cmake_path})
 	enable_testing()
 	add_subdirectory(tests)
 endif()
+
+if(${ERROR_CODE_WITH_INSTALL})
+	include(CMakePackageConfigHelpers)
+	if(UNIX)
+		include(GNUInstallDirs)
+		set(include_install_dir ${CMAKE_INSTALL_INCLUDEDIR})
+		set(config_install_dir "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}")
+		set(lib_install_dir ${CMAKE_INSTALL_LIBDIR})
+	else()
+		set(include_install_dir "include")
+		set(config_install_dir "lib/cmake/${PROJECT_NAME}")
+		set(lib_install_dir "lib")
+	endif()
+	set(config_install_dir "${config_install_dir}")
+
+	set(targets_export_name "${PROJECT_NAME}Targets")
+	install(
+		TARGETS ${PROJECT_NAME}
+		EXPORT ${targets_export_name}
+		ARCHIVE DESTINATION ${lib_install_dir}
+		INCLUDES DESTINATION ${include_install_dir}
+	)
+
+	install(
+		EXPORT ${targets_export_name}
+		FILE "${targets_export_name}.cmake"
+		NAMESPACE ErrorCode::
+		DESTINATION ${config_install_dir}
+	)
+
+	install(
+		FILES
+			include/error_code.h
+			DESTINATION ${include_install_dir}
+	)
+
+	configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Config.cmake.in
+		"${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
+		INSTALL_DESTINATION "${config_install_dir}"
+		NO_SET_AND_CHECK_MACRO
+		NO_CHECK_REQUIRED_COMPONENTS_MACRO
+	)
+
+	write_basic_package_version_file(
+		"${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
+		COMPATIBILITY SameMinorVersion
+	)
+
+	install(FILES
+		${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake
+		${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake
+		DESTINATION ${config_install_dir}
+	)
+endif()
+
+target_include_directories(
+	${PROJECT_NAME}
+	PUBLIC
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+		$<INSTALL_INTERFACE:${config_install_dir}>
+)
